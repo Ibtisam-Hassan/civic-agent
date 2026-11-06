@@ -1,0 +1,14 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run pytest -q
+      - name: Mutation check (every safety control must be covered by a failing test)
+        run: uv run python scripts/mutation_check.py
+      - name: Evaluation (scripted model, real MCP over stdio, real embeddings)
+        run: uv run civic-eval --model scripted --out reports-ci

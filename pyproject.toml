@@ -1,0 +1,39 @@
+[project]
+name = "civic-agent"
+version = "0.1.0"
+description = "A government-services AI agent with least-privilege tools, human approval, injection defences and an evaluation set."
+readme = "README.md"
+authors = [
+    { name = "Ibtisam", email = "ibtisam5hassan@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography==46.0.3",
+    "langchain-core>=1.7.6",
+    "langchain-mcp-adapters>=0.3.2",
+    "langchain-openai>=1.7.4",
+    "langgraph>=1.2.20",
+    "mcp>=1.30.0",
+    "model2vec>=0.10.0",
+    "numpy>=2.5.4",
+]
+
+[project.scripts]
+civic-agent = "civic_agent.cli:main"
+civic-eval = "civic_agent.eval:main"
+
+[build-system]
+requires = ["uv_build>=0.11.29,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["tests"]
