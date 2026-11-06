@@ -10,6 +10,7 @@ quarantined before the model sees it; the final answer is checked for prompt lea
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 from typing import Annotated, Any, Callable, TypedDict
@@ -200,8 +201,13 @@ def build_agent(model: BaseChatModel, tools: list[BaseTool], session: Session, a
 Approver = Callable[[dict], str]
 
 
-async def run_turn(app, thread_id: str, text: str, approver: Approver) -> dict:
+async def run_turn(app, thread_id: str, text: str, approver: Approver, telemetry=None, role: str = "") -> dict:
     """Send one user message; answer every approval request through `approver` until the agent finishes."""
+    with telemetry.turn(role) if telemetry else contextlib.nullcontext():
+        return await _run_turn(app, thread_id, text, approver)
+
+
+async def _run_turn(app, thread_id: str, text: str, approver: Approver) -> dict:
     config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 50}
     result = await app.ainvoke({"messages": [HumanMessage(text)]}, config)
     approvals = []

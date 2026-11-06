@@ -27,6 +27,10 @@ MUTANTS = [
      "visible = list(range(len(self.docs)))"),
     ("server trusts any role for status", "mcp_server.py", 'if req is None or (role != "caseworker" and req["owner"] != requester_id):',
      "if req is None:"),
+    ("metrics/traces fed raw events", "audit.py", "            sink(event)", "            sink({\"ts\": time.time(), \"event\": kind, **fields})"),
+    ("cost not tracked", "telemetry.py", "self.cost.labels(self.model).inc((tin * self.price_in + tout * self.price_out) / 1e6)", "pass"),
+    ("quarantines not counted", "telemetry.py", "self.quarantined.labels(e[\"tool\"]).inc()", "pass"),
+    ("denials not recorded as outcome", "telemetry.py", 'self._outcome = "denied"', "pass"),
 ]
 
 

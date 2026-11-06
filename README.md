@@ -27,7 +27,7 @@ Requires [uv](https://docs.astral.sh/uv/). No API key is needed for the default 
 uv sync
 uv run civic-agent                      # chat as citizen-1 (try --role caseworker)
 uv run civic-eval --model scripted      # run the evaluation set, writes reports/
-uv run pytest -q                        # 28 tests
+uv run pytest -q                        # 33 tests
 uv run python scripts/mutation_check.py # proves each safety control is covered by a test
 ```
 
@@ -89,10 +89,35 @@ row measures.
 that obeys any instruction it reads, and against a model that ignores its tool list. The tests show that each
 control holds on its own. For example, with quarantine switched off, the gullible model tries to file the planted
 request and the approval gate still stops it. `scripts/mutation_check.py` then removes each control one at a time
-(12 mutants) and requires the suite to fail every time; CI runs it on every push.
+(16 mutants, including the monitoring) and requires the suite to fail every time; CI runs it on every push.
 
 During development the evaluation caught an over-eager write: the scripted policy read "When can I file an
 enquiry?" as a request to file one. The approval gate stopped it, and the intent rule was fixed.
+
+## Monitoring: metrics, traces and alerts
+
+The audit trail is the single event stream. Each event is redacted first, then written to the JSONL log,
+counted as a Prometheus metric and recorded as an OpenTelemetry span (`telemetry.py`). Spans carry metadata only
+(tool, tokens, latency, decision), never user text, so a trace cannot leak personal data even if a redaction
+pattern misses something. A test checks that.
+
+```bash
+uv run civic-load --metrics-port 9464                          # replay the evaluation set as traffic
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 uv run civic-load   # ...and send traces to Jaeger
+docker compose -f observability/docker-compose.yml up -d       # Prometheus :9090, Grafana :3000, Jaeger :16686
+```
+
+![Grafana dashboard](docs/dashboard.png)
+
+- **Metrics:** turns by outcome (answered, denied, blocked, step limit, error), turn, LLM and tool latency
+  histograms, tokens in and out, spend in USD, safety controls triggered by reason, approvals by decision,
+  quarantined injections.
+- **Traces:** one `agent.turn` span per user message, with `agent.model_call` and `agent.tool_call` children
+  (GenAI token attributes), and approval and block events on the turn.
+- **Alerts** (`observability/alerts.yml`, checked with `promtool`): agent down, LLM p95 latency over 5 s, turn
+  errors, more than 5 planted instructions in 10 minutes, over 30% of turns hitting a safety control (drift or an
+  attack), and LLM spend over 1 USD an hour. In the screenshot run, the injection alert fired as intended,
+  because the evaluation set retrieves the planted notice on every round.
 
 ## Layout
 
@@ -103,11 +128,13 @@ src/civic_agent/
   mcp_server.py   MCP tool server (search, status, submit)
   retrieval.py    BM25 + embeddings, rank fusion, access filter
   models.py       real model (OpenAI-compatible: Groq, OpenRouter) and scripted / gullible stand-ins
-  audit.py        redacted JSONL audit trail
+  audit.py        redacted JSONL audit trail, fanned out to telemetry
+  telemetry.py    Prometheus metrics and OpenTelemetry traces
   eval.py         evaluation runner and report
   cli.py          terminal chat with approval prompts
   data/           synthetic documents (English + Urdu) and evaluation tasks
-tests/            safety, retrieval, policy, server and evaluation tests
+tests/            safety, retrieval, policy, server, telemetry and evaluation tests
+observability/    Prometheus, alert rules, Grafana dashboard, Jaeger (docker compose)
 ```
 
 ## Limits

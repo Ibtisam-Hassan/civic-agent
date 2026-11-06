@@ -1,0 +1,303 @@
+{
+  "uid": "civic-agent",
+  "title": "civic-agent: agent health and safety",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Turns per minute by outcome",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(civic_turns_total[1m])) * 60",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Turn latency p95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(civic_turn_latency_seconds_bucket[5m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "LLM latency p95 by model",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(civic_model_latency_seconds_bucket[5m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Tool latency p95 by tool",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, tool) (rate(civic_tool_latency_seconds_bucket[5m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "legendFormat": "{{tool}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Tokens per minute",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (direction) (rate(civic_tokens_total[1m])) * 60",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "legendFormat": "{{direction}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Spend (USD, total)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(civic_cost_usd_total)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Safety controls triggered (5 min)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (control, reason) (increase(civic_blocked_total[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "legendFormat": "{{control}}: {{reason}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Human approvals by decision (5 min)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (decision) (increase(civic_approvals_total[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "legendFormat": "{{decision}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Planted instructions quarantined (15 min)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "round(sum(increase(civic_injection_quarantined_total[15m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          }
+        }
+      ]
+    }
+  ],
+  "tags": [
+    "civic-agent"
+  ],
+  "version": 2
+}

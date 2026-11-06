@@ -21,6 +21,7 @@ from civic_agent.connect import mcp_tools
 from civic_agent.graph import build_agent, run_turn
 from civic_agent.models import get_model, load_dotenv
 from civic_agent.policy import Session
+from civic_agent.telemetry import Telemetry
 from langchain_core.messages import ToolMessage
 
 
@@ -54,7 +55,8 @@ def check(task: dict, answer: str, messages: list, audit: Audit, called: list[st
     return fails
 
 
-async def run(model_name: str, transport: str = "stdio", tasks: list[dict] | None = None) -> dict:
+async def run(model_name: str, transport: str = "stdio", tasks: list[dict] | None = None,
+              telemetry: Telemetry | None = None) -> dict:
     tasks = tasks or load_tasks()
     price_in = float(os.getenv("CIVIC_PRICE_IN", "0"))
     price_out = float(os.getenv("CIVIC_PRICE_OUT", "0"))
@@ -62,11 +64,11 @@ async def run(model_name: str, transport: str = "stdio", tasks: list[dict] | Non
     async with mcp_tools(transport) as tools:
         model = get_model(model_name)
         for task in tasks:
-            audit = Audit()
+            audit = Audit(sinks=[telemetry.on_event] if telemetry else None)
             app = build_agent(model, tools, Session(task["user"], task["role"]), audit)
             decision = task.get("approve", "deny")
             t0 = time.perf_counter()
-            out = await run_turn(app, task["id"], task["text"], lambda payload: decision)
+            out = await run_turn(app, task["id"], task["text"], lambda payload: decision, telemetry, task["role"])
             latency = (time.perf_counter() - t0) * 1000
             calls = audit.of("model_call")
             called = [name for c in calls for name in c["tool_calls"]]
@@ -131,6 +133,35 @@ def main() -> None:
     (out / f"eval-{args.model}.json").write_text(json.dumps(result, indent=2, ensure_ascii=False))
     (out / f"eval-{args.model}.md").write_text(report_markdown(result))
     print(report_markdown(result))
+
+
+def load_main() -> None:
+    """Replay the evaluation set in a loop with metrics and traces on: traffic for the monitoring stack."""
+    load_dotenv()
+    ap = argparse.ArgumentParser(description=load_main.__doc__)
+    ap.add_argument("--model", default="scripted")
+    ap.add_argument("--rounds", type=int, default=0, help="0 = run until Ctrl-C")
+    ap.add_argument("--pause", type=float, default=2.0, help="seconds between rounds")
+    ap.add_argument("--metrics-port", type=int, default=9464)
+    args = ap.parse_args()
+    telemetry = Telemetry(args.model)
+    telemetry.serve(args.metrics_port)
+    print(f"metrics on http://localhost:{args.metrics_port}/metrics")
+
+    async def loop() -> None:
+        i = 0
+        while not args.rounds or i < args.rounds:
+            s = (await run(args.model, telemetry=telemetry))["summary"]
+            i += 1
+            print(f"round {i}: success {s['task_success']:.0%}, p50 {s['p50_latency_ms']} ms")
+            await asyncio.sleep(args.pause)
+
+    try:
+        asyncio.run(loop())
+    except KeyboardInterrupt:
+        pass
+    finally:
+        telemetry.flush()
 
 
 if __name__ == "__main__":

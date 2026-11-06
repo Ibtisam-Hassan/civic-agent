@@ -16,11 +16,15 @@ dependencies = [
     "mcp>=1.30.0",
     "model2vec>=0.10.0",
     "numpy>=2.5.4",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.2",
+    "opentelemetry-sdk>=1.45.2",
+    "prometheus-client>=0.26.0",
 ]
 
 [project.scripts]
 civic-agent = "civic_agent.cli:main"
 civic-eval = "civic_agent.eval:main"
+civic-load = "civic_agent.eval:load_main"
 
 [build-system]
 requires = ["uv_build>=0.11.29,<0.12.0"]

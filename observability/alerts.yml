@@ -1,0 +1,30 @@
+groups:
+  - name: civic-agent
+    rules:
+      - alert: CivicAgentDown
+        expr: up{job="civic-agent"} == 0
+        for: 1m
+        labels: {severity: page}
+        annotations: {summary: "civic-agent metrics endpoint is not answering"}
+      - alert: CivicModelLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le, model) (rate(civic_model_latency_seconds_bucket[5m]))) > 5
+        for: 5m
+        labels: {severity: warn}
+        annotations: {summary: "95th percentile LLM latency above 5 s for {{ $labels.model }}"}
+      - alert: CivicTurnErrors
+        expr: increase(civic_turns_total{outcome="error"}[10m]) > 0
+        labels: {severity: page}
+        annotations: {summary: "Agent turns are failing with exceptions"}
+      - alert: CivicInjectionAttempts
+        expr: sum(increase(civic_injection_quarantined_total[10m])) > 5
+        labels: {severity: warn}
+        annotations: {summary: "More than 5 documents with planted instructions retrieved in 10 minutes"}
+      - alert: CivicControlBlocksSpike
+        expr: sum(rate(civic_blocked_total[5m])) / clamp_min(sum(rate(civic_turns_total[5m])), 0.001) > 0.3
+        for: 10m
+        labels: {severity: warn}
+        annotations: {summary: "Over 30% of turns hit a safety control: model drift or an attack"}
+      - alert: CivicSpendBudget
+        expr: sum(increase(civic_cost_usd_total[1h])) > 1
+        labels: {severity: warn}
+        annotations: {summary: "LLM spend above 1 USD in the last hour"}
